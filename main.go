@@ -24,6 +24,7 @@ var (
 	esServer      string
 	esUser        string
 	esPassword    string
+	destNet       string
 	verbosity     bool
 	err           error
 	handle        *pcap.Handle
@@ -62,7 +63,7 @@ func sendToElastic(dnsMsg DnsMsg, wg *sync.WaitGroup) {
 	request.SetBasicAuth(esUser, esPassword)
 	request.Header.Set("Content-Type", "application/json")
 	client := &http.Client{
-		Timeout:   10 * time.Second,
+		Timeout:   60 * time.Second,
 		Transport: httpTransport,
 	}
 	resp, elErr := client.Do(request)
@@ -82,6 +83,7 @@ func main() {
 	flag.StringVar(&esPassword, "p", "logstash", "Elastic user password")
 	flag.StringVar(&esIndex, "s", "dns_index", "Elastic index name")
 	flag.StringVar(&esDocType, "t", "syslog", "Elastic document type")
+	flag.StringVar(&destNet, "x", "0.0.0.0/0", "Set destination network")
 	flag.BoolVar(&verbosity, "v", false, "Show requests in console")
 
 	flag.Parse()
@@ -108,7 +110,7 @@ func main() {
 	}
 	defer handle.Close()
 
-	var filter = "udp and port 53"
+	var filter = fmt.Sprintf("udp and port 53 and dst net %s", destNet)
 	fmt.Println("    Filter: ", filter)
 	err := handle.SetBPFFilter(filter)
 	if err != nil {
